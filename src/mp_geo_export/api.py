@@ -6,7 +6,7 @@ from typing import Any
 
 import requests
 
-from .queries import GET_GEO, GET_NOTES, GET_SWEEPS, GET_TAGS
+from .queries import GET_GEO, GET_NOTES, GET_SWEEPS, GET_TAGS, GET_MODEL_GEOCOORDINATES
 
 
 class GraphQLError(RuntimeError):
@@ -62,21 +62,52 @@ class ApiClient:
                 time.sleep(2 ** attempt)
         raise RuntimeError("Unreachable")
 
-    def fetch_locations(self, model_id: str, resolution: str) -> list[dict[str, Any]]:
+    def fetch_locations(self, model_id: str, resolution: str, on_progress: "None | (callable)" = None) -> list[dict[str, Any]]:  # type: ignore[valid-type]
+        if on_progress:
+            on_progress("Sending GraphQL request...")
         data = self._post(GET_SWEEPS, {"modelId": model_id})
+        if on_progress:
+            on_progress("Parsing locations data...")
         model = data.get("model") or {}
         locations = model.get("locations") or []
+        if on_progress:
+            on_progress(f"Found {len(locations)} locations")
         return locations
 
-    def fetch_tags(self, model_id: str) -> list[dict[str, Any]]:
+    def fetch_tags(self, model_id: str, on_progress: "None | (callable)" = None) -> list[dict[str, Any]]:  # type: ignore[valid-type]
+        if on_progress:
+            on_progress("Sending GraphQL request...")
         data = self._post(GET_TAGS, {"modelId": model_id})
+        if on_progress:
+            on_progress("Parsing tags data...")
         model = data.get("model") or {}
-        return model.get("mattertags") or []
+        tags = model.get("mattertags") or []
+        if on_progress:
+            on_progress(f"Found {len(tags)} tags")
+        return tags
 
-    def fetch_notes(self, model_id: str) -> list[dict[str, Any]]:
+    def fetch_notes(self, model_id: str, on_progress: "None | (callable)" = None) -> list[dict[str, Any]]:  # type: ignore[valid-type]
+        if on_progress:
+            on_progress("Sending GraphQL request...")
         data = self._post(GET_NOTES, {"modelId": model_id})
+        if on_progress:
+            on_progress("Parsing notes data...")
         model = data.get("model") or {}
-        return model.get("notes") or []
+        notes = model.get("notes") or []
+        if on_progress:
+            on_progress(f"Found {len(notes)} notes")
+        return notes
+
+    def fetch_model_geocoordinates(self, model_id: str, on_progress: "None | (callable)" = None) -> dict[str, Any]:  # type: ignore[valid-type]
+        if on_progress:
+            on_progress("Sending GraphQL request...")
+        data = self._post(GET_MODEL_GEOCOORDINATES, {"modelId": model_id})
+        if on_progress:
+            on_progress("Parsing geocoordinates...")
+        model = data.get("model") or {}
+        if on_progress:
+            on_progress("Geocoordinates retrieved")
+        return model
 
     def geocode_point(self, model_id: str, point: dict[str, float]) -> dict[str, Any]:
         data = self._post(GET_GEO, {"modelId": model_id, "point": point})
@@ -98,6 +129,8 @@ class ApiClient:
             self.max_rps = max_rps
         results: list[dict[str, Any] | None] = [None] * len(points)
         completed = 0
+        start_time = time.monotonic()
+        
         with ThreadPoolExecutor(max_workers=concurrency) as executor:
             future_to_index = {executor.submit(self.geocode_point, model_id, pt): idx for idx, pt in enumerate(points)}
             for future in as_completed(future_to_index):
@@ -106,7 +139,10 @@ class ApiClient:
                 completed += 1
                 if on_progress:
                     try:
-                        on_progress(completed)
+                        # Provide both completed count and rate information
+                        elapsed = time.monotonic() - start_time
+                        rate = completed / elapsed if elapsed > 0 else 0
+                        on_progress(completed, rate)
                     except Exception:
                         pass
         return [r for r in results if r is not None]

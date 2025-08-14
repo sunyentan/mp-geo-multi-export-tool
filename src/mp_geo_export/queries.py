@@ -46,4 +46,24 @@ query getLatLongOfModelPoint($modelId: ID!, $point: IPoint3D!) {
 }
 """
 
+GET_MODEL_GEOCOORDINATES = """
+query getGeoCoordinates($modelId: ID!) {
+  model(id: $modelId) {
+    id
+    geocoordinates {
+      ...GeoCoordinateFragment
+    }
+  }
+}
+
+fragment GeoCoordinateFragment on GeoCoordinate {
+  source
+  altitude
+  latitude
+  longitude
+  translation { x y z }
+  rotation { x y z w }
+}
+"""
+
 

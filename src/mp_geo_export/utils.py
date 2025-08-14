@@ -43,16 +43,16 @@ def to_geojson_feature(item: Any) -> dict[str, Any]:
     }
     
     # Add type-specific properties
-    if hasattr(item, 'skyboxImages') and item.skyboxImages:
-        properties["skybox_images"] = item.skyboxImages
+    if hasattr(item, 'skyboxImages'):  # PanoExport/SweepExport
         properties["type"] = "sweep"
-    elif hasattr(item, 'label'):
-        if hasattr(item, 'text'):  # NoteExport
-            properties["text"] = item.text
-            properties["type"] = "note"
-        else:  # TagExport
-            properties["label"] = item.label
-            properties["type"] = "tag"
+        if item.skyboxImages:
+            properties["skybox_images"] = item.skyboxImages
+    elif hasattr(item, 'text') and hasattr(item, 'label'):  # NoteExport has both
+        properties["text"] = item.text
+        properties["type"] = "note"
+    elif hasattr(item, 'label'):  # TagExport
+        properties["label"] = item.label
+        properties["type"] = "tag"
     
     return {
         "type": "Feature",
@@ -79,5 +79,25 @@ class Timer:
     def __exit__(self, *exc_info) -> None:  # type: ignore[no-untyped-def]
         self.end = time.perf_counter()
         self.elapsed = self.end - self.start
+    
+    def format_elapsed(self) -> str:
+        """Format elapsed time with appropriate precision."""
+        if self.elapsed <= 0:
+            return "0s"
+        elif self.elapsed >= 10:
+            return f"{self.elapsed:.1f}s"
+        elif self.elapsed >= 1:
+            return f"{self.elapsed:.2f}s"
+        elif self.elapsed >= 0.1:
+            return f"{self.elapsed:.3f}s"
+        elif self.elapsed >= 0.001:  # 1ms and above
+            ms = self.elapsed * 1000
+            return f"{ms:.1f}ms"
+        else:  # Less than 1ms
+            us = self.elapsed * 1000000
+            if us >= 1:
+                return f"{us:.0f}μs"
+            else:
+                return "<1μs"  # For extremely small times
 
 

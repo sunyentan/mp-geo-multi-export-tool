@@ -50,5 +50,3 @@ def get_auth_header(
 
     token = _b64(f"{key}:{secret}")
     return f"Basic {token}"
-
-

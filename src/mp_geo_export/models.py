@@ -36,3 +36,24 @@ class NoteExport(BaseModel):
     geo: LatLng
 
 
+class Quaternion(BaseModel):
+    x: float
+    y: float
+    z: float
+    w: float
+
+
+class ModelGeoCoordinates(BaseModel):
+    source: str | None = None
+    altitude: float | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    translation: GeoPoint | None = None
+    rotation: Quaternion | None = None
+
+
+class ModelExport(BaseModel):
+    id: str
+    geocoordinates: ModelGeoCoordinates
+
+

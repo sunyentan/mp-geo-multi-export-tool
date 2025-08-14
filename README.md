@@ -1,94 +1,328 @@
-## mp-geo-export
+# mp-geo-export
 
-Export Matterport model data (sweeps, tags, notes) with geocoordinates as JSON/CSV.
+A Python CLI tool and SDK for exporting Matterport 3D model data (sweeps/panoramas, tags, notes) with real-world geocoordinates as JSON or GeoJSON.
 
-Why two steps? Matterport GraphQL returns local model coordinates (x,y,z). To obtain real-world latitude/longitude, you must resolve each point via `model.geocoordinates.geoLocationOf(modelLocation: IPoint3D!)`. This tool automates fetching objects, resolving geo, and writing clean outputs.
+## What This Tool Does
 
-### Install
+Matterport's GraphQL API returns 3D model coordinates in local space (x,y,z). To get real-world latitude/longitude coordinates, you need to resolve each point through their `model.geocoordinates.geoLocationOf()` endpoint. This tool automates the entire process:
 
-- Recommended (CLI):
-```
+1. **Fetches** all objects (sweeps, tags, notes) from a Matterport model
+2. **Resolves** local 3D coordinates to real-world lat/lng coordinates
+3. **Exports** clean, structured data in JSON or GeoJSON format
+
+## Quick Start
+
+### Installation
+
+```bash
+# Recommended: Install globally with pipx
 pipx install .
-```
 
-- Or library/CLI:
-```
+# Or install as a regular package
 pip install .
 ```
 
-Python 3.10+.
+**Requirements**: Python 3.10+
 
-### Credentials & Security
+### First Use Setup
 
-Provide credentials via one of the following, in priority order:
+1. **Get your Matterport API credentials**:
+   - Go to [Matterport Developer Portal](https://matterport.com/developers)
+   - Create an app and get your API key and secret
 
-- Keyring: service `mp-geo-export`, username `matterport-basic` (stores `key:secret`).
-- Environment variables: `MATTERPORT_API_KEY`, `MATTERPORT_API_SECRET`, `MATTERPORT_API_URL` (optional).
-- CLI flags: `--api-key`, `--api-secret`, `--url` (no persistence).
-- Interactive prompt if none provided; choose `--save-to-keyring/--no-save-to-keyring` (default save when prompted).
+2. **Run your first export**:
+   ```bash
+   # Export all sweeps/panoramas from a model
+   mp-geo-export export sweeps --model-id YOUR_MODEL_ID --format geojson > sweeps.geojson
+   
+   # Export all tags
+   mp-geo-export export tags --model-id YOUR_MODEL_ID --format json > tags.json
+   
+   # Export all notes
+   mp-geo-export export notes --model-id YOUR_MODEL_ID --format geojson > notes.geojson
+   ```
 
-Secrets are never written to disk. Persistence uses OS keyring only. `.env` is supported for non-secret settings; see `.env.example`.
+## Complete Usage Examples
 
-Default API URL: `https://api.matterport.com/api/models/graph`.
+### Export Sweeps/Panoramas
+```bash
+# Basic export to stdout
+mp-geo-export export sweeps --model-id abc123
 
-### Usage
+# Export to file with GeoJSON format
+mp-geo-export export sweeps --model-id abc123 --format geojson --out sweeps.geojson
 
+# Include skybox images (6-sided panorama data)
+mp-geo-export export sweeps --model-id abc123 --include-skybox --format geojson
+
+# High-performance export with custom concurrency
+mp-geo-export export sweeps --model-id abc123 --concurrency 16 --max-rps 10
 ```
-mp-geo-export export sweeps --model-id <MODEL_ID> --format json > sweeps.json
-mp-geo-export export tags   --model-id <MODEL_ID> --format csv  --out tags.csv
-mp-geo-export export sweeps --model-id <MODEL_ID> --include-skybox
-mp-geo-export export sweeps --model-id <MODEL_ID> --resolution 4k --concurrency 12 --max-rps 8
+
+### Export Tags
+```bash
+# Export all tags to GeoJSON
+mp-geo-export export tags --model-id abc123 --format geojson --out tags.geojson
+
+# Export tags to JSON with pretty formatting
+mp-geo-export export tags --model-id abc123 --format json --pretty
 ```
 
-Common flags:
+### Export Notes
+```bash
+# Export all notes to GeoJSON
+mp-geo-export export notes --model-id abc123 --format geojson --out notes.geojson
+```
 
-- `--model-id TEXT` (required unless `MP_MODEL_ID` set)
-- `--out PATH` default `-` (stdout)
-- `--format [json|csv]` default `json`
-- `--resolution [1k|2k|4k]` (sweeps)
-- `--concurrency INTEGER` default 8
-- `--max-rps FLOAT` default 5.0
-- `--retries INTEGER` default 3
-- `--timeout FLOAT` default 30.0
-- `--include-skybox/--no-include-skybox` (sweeps) default false
-- `--pretty/--no-pretty` JSON pretty default true for TTY
-- `--csv-headers/--no-csv-headers` default true
-- `--api-key --api-secret --url` overrides
-- `--save-to-keyring/--no-save-to-keyring` when prompted
+## Command Line Options
 
-CSV headers:
+### Required
+- `--model-id TEXT` - Matterport model ID (or set `MP_MODEL_ID` environment variable)
 
-- Sweeps: `id,lat,long,alt,x,y,z,skybox_0,...,skybox_5` (when --include-skybox)
-- Tags: `id,label,lat,long,alt,x,y,z`
-- Notes: `id,text,lat,long,alt,x,y,z`
+### Output Options
+- `--out PATH` - Output file path (default: stdout)
+- `--format [json|geojson]` - Output format (default: json)
+- `--pretty/--no-pretty` - Pretty-print output (default: auto-detected for TTY)
 
-### Programmatic use
+### Sweep-specific Options
+- `--include-skybox/--no-include-skybox` - Include 6-sided skybox panorama data (default: false)
 
+### Performance Tuning
+- `--concurrency INTEGER` - Number of concurrent geocoding requests (default: 8)
+- `--max-rps FLOAT` - Maximum requests per second (default: 5.0)
+- `--retries INTEGER` - Retry attempts for failed requests (default: 3)
+- `--timeout FLOAT` - Request timeout in seconds (default: 30.0)
+
+### Authentication
+- `--api-key TEXT` - Matterport API key
+- `--api-secret TEXT` - Matterport API secret
+- `--url TEXT` - Custom API URL (default: https://api.matterport.com/api/models/graph)
+- `--save-to-keyring/--no-save-to-keyring` - Save credentials to OS keyring (default: true when prompted)
+
+## Authentication & Security
+
+The tool supports multiple ways to provide your Matterport API credentials:
+
+### 1. OS Keyring (Recommended)
+Credentials are securely stored in your OS keyring and automatically retrieved:
+```bash
+# First time: you'll be prompted to enter credentials
+mp-geo-export export sweeps --model-id abc123
+
+# Subsequent runs: credentials are automatically loaded
+mp-geo-export export sweeps --model-id abc123
+```
+
+### 2. Environment Variables
+```bash
+export MATTERPORT_API_KEY="your_api_key"
+export MATTERPORT_API_SECRET="your_api_secret"
+export MATTERPORT_API_URL="https://api.matterport.com/api/models/graph"  # optional
+
+mp-geo-export export sweeps --model-id abc123
+```
+
+### 3. Command Line Flags
+```bash
+mp-geo-export export sweeps --model-id abc123 \
+  --api-key "your_api_key" \
+  --api-secret "your_api_secret"
+```
+
+### 4. Interactive Prompt
+If no credentials are provided, you'll be prompted to enter them interactively.
+
+**Security Note**: Credentials are never written to disk. The OS keyring uses your system's secure credential storage.
+
+## Output Formats
+
+### JSON Format
+Standard JSON array with full object data:
+```json
+[
+  {
+    "id": "location_1_pano1",
+    "local": {"x": 10.5, "y": 2.1, "z": -5.2},
+    "geo": {"lat": 37.7749, "lng": -122.4194},
+    "skyboxImages": null
+  }
+]
+```
+
+### GeoJSON Format
+Standard geographic data format with Point geometries:
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.4194, 37.7749]
+      },
+      "properties": {
+        "id": "location_1_pano1",
+        "local_x": 10.5,
+        "local_y": 2.1,
+        "local_z": -5.2
+      }
+    }
+  ]
+}
+```
+
+## Programmatic Usage
+
+### Python SDK
 ```python
-from mp_geo_export import export_sweeps, export_panos
+from mp_geo_export import export_sweeps, export_tags, export_notes
 
-# New preferred API
-rows = export_sweeps("MODEL_ID", include_skybox=True, resolution="2k")
+# Export sweeps with skybox data
+sweeps = export_sweeps(
+    "MODEL_ID", 
+    include_skybox=True, 
+    resolution="2k",
+    concurrency=16
+)
 
-# Legacy API (still supported)
-rows = export_panos("MODEL_ID", include_skybox=True, resolution="2k")
+# Export tags
+tags = export_tags("MODEL_ID")
+
+# Export notes
+notes = export_notes("MODEL_ID")
+
+# Access the data
+for sweep in sweeps:
+    print(f"Sweep {sweep.id}: {sweep.geo.lat}, {sweep.geo.lng}")
 ```
 
-### Notes on rate limiting & retries
+### Advanced Configuration
+```python
+from mp_geo_export import export_sweeps
 
-The client applies simple per-request rate limiting and retry with exponential backoff to avoid hammering the GraphQL endpoint.
-
-### Development
-
-Run tests:
+# Custom API client configuration
+sweeps = export_sweeps(
+    "MODEL_ID",
+    api_key="your_key",
+    api_secret="your_secret",
+    url="https://custom-api.example.com",
+    concurrency=20,
+    max_rps=15.0,
+    retries=5,
+    timeout=60.0
+)
 ```
+
+## Rate Limiting & Performance
+
+The tool includes built-in rate limiting and retry logic:
+- **Rate Limiting**: Configurable requests per second (default: 5 RPS)
+- **Concurrency**: Parallel geocoding requests (default: 8 concurrent)
+- **Retries**: Exponential backoff for failed requests (default: 3 attempts)
+- **Progress Bars**: Visual feedback for long-running operations
+
+## Development
+
+### Setup Development Environment
+```bash
+# Clone and install in development mode
+git clone https://github.com/sunyentan/mp-geocoord-export.git
+cd mp-geocoord-export
+pip install -e .
+
+# Install development dependencies
+pip install pytest mypy
+```
+
+### Run Tests
+```bash
 pytest -q
 ```
 
-Type-check:
-```
+### Type Checking
+```bash
 mypy src
 ```
 
-# mp-geocoord-export
-Export geo coordinates of sweeps, tags, etc
+## Troubleshooting
+
+### Common Issues
+
+1. **"Model not found" error**
+   - Verify your model ID is correct
+   - Ensure your API credentials have access to the model
+
+2. **Rate limiting errors**
+   - Reduce `--concurrency` and `--max-rps` values
+   - The tool automatically retries with exponential backoff
+
+3. **Authentication errors**
+   - Check your API key and secret
+   - Try clearing stored credentials: `keyring delete mp-geo-export matterport-basic`
+
+4. **Large models timing out**
+   - Increase `--timeout` value
+   - Use higher `--concurrency` for faster processing
+
+### Getting Help
+- Check the [Matterport API documentation](https://matterport.com/developers)
+- Review the command help: `mp-geo-export --help`
+- Check specific command help: `mp-geo-export export sweeps --help`
+
+## License
+
+This project is licensed under the terms specified in the LICENSE file.
+
+---
+
+## Cursor Implementation Prompt
+
+If you're using Cursor AI to implement this tool, here's a complete prompt you can copy and paste:
+
+```
+I need to create a Python CLI tool called "mp-geo-export" that exports Matterport 3D model data with real-world geocoordinates. Here are the requirements:
+
+**Core Functionality:**
+- Export Matterport sweeps/panoramas, tags, and notes from a 3D model
+- Convert local 3D coordinates (x,y,z) to real-world lat/lng using Matterport's geocoding API
+- Support both JSON and GeoJSON output formats
+- Handle authentication via API key/secret with secure credential storage
+
+**Technical Requirements:**
+- Python 3.10+ with modern type hints
+- CLI interface using Typer
+- Rich progress bars and status indicators
+- Rate limiting and retry logic for API calls
+- OS keyring integration for secure credential storage
+- Pydantic models for data validation
+- Async/await for concurrent API requests
+
+**Key Features:**
+- Command: `mp-geo-export export <type> --model-id <ID> --format <json|geojson>`
+- Types: sweeps, tags, notes
+- Include skybox panorama data option
+- Configurable concurrency and rate limiting
+- Progress tracking for long operations
+- Pretty-printed output
+
+**API Integration:**
+- Matterport GraphQL API for fetching model data
+- Batch geocoding for performance
+- Handle authentication headers
+- Support custom API URLs
+
+**Output Formats:**
+- JSON: Full object data with coordinates
+- GeoJSON: Standard geographic format with Point geometries
+
+**Security:**
+- Never write credentials to disk
+- Use OS keyring for persistence
+- Support environment variables
+- Interactive credential prompts
+
+Please implement this as a complete, production-ready Python package with proper error handling, documentation, and tests.
+```
+
+This prompt gives Cursor all the context needed to implement the tool from scratch!

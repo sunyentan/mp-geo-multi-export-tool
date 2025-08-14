@@ -1,0 +1,16 @@
+# Python build artifacts
+__pycache__/
+*.pyc
+build/
+dist/
+*.egg-info/
+
+# Environment files
+.env
+
+# Test coverage
+.pytest_cache/
+.coverage
+
+# macOS
+.DS_Store
