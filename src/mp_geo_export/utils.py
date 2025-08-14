@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import csv
-import io
 import json
 import sys
 import time
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Any
 
 from rich.console import Console
 
@@ -19,17 +17,51 @@ def write_json(data: object, out_path: Path | None, pretty: bool) -> None:
         Path(out_path).write_text(text)
 
 
-def write_csv(rows: Iterable[Sequence[object]], headers: Sequence[str] | None, out_path: Path | None) -> None:
-    file_handle = sys.stdout if (out_path is None or str(out_path) == "-") else open(out_path, "w", newline="")
-    try:
-        writer = csv.writer(file_handle)
-        if headers:
-            writer.writerow(headers)
-        for row in rows:
-            writer.writerow(list(row))
-    finally:
-        if file_handle is not sys.stdout:
-            file_handle.close()
+def write_geojson(features: list[dict[str, Any]], out_path: Path | None, pretty: bool) -> None:
+    """Write a GeoJSON FeatureCollection."""
+    geojson = {
+        "type": "FeatureCollection",
+        "features": features
+    }
+    write_json(geojson, out_path, pretty)
+
+
+def to_geojson_feature(item: Any) -> dict[str, Any]:
+    """Convert a PanoExport, TagExport, or NoteExport to a GeoJSON Feature."""
+    # Extract coordinates [longitude, latitude] - note the order!
+    coordinates = [item.geo.long, item.geo.lat]
+    if item.geo.alt is not None:
+        coordinates.append(item.geo.alt)
+    
+    properties = {
+        "id": item.id,
+        "local_coordinates": {
+            "x": item.local.x,
+            "y": item.local.y, 
+            "z": item.local.z
+        }
+    }
+    
+    # Add type-specific properties
+    if hasattr(item, 'skyboxImages') and item.skyboxImages:
+        properties["skybox_images"] = item.skyboxImages
+        properties["type"] = "sweep"
+    elif hasattr(item, 'label'):
+        if hasattr(item, 'text'):  # NoteExport
+            properties["text"] = item.text
+            properties["type"] = "note"
+        else:  # TagExport
+            properties["label"] = item.label
+            properties["type"] = "tag"
+    
+    return {
+        "type": "Feature",
+        "geometry": {
+            "type": "Point",
+            "coordinates": coordinates
+        },
+        "properties": properties
+    }
 
 
 def console() -> Console:

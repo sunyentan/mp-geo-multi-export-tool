@@ -9,6 +9,7 @@ from .models import LatLng, NoteExport, PanoExport, TagExport
 
 __all__ = [
     "export_panos",
+    "export_sweeps", 
     "export_tags",
     "export_notes",
     "PanoExport",
@@ -33,7 +34,7 @@ def _client(**kwargs: Any) -> ApiClient:
 
 def export_panos(
     model_id: str,
-    include_skybox: bool = True,
+    include_skybox: bool = False,
     resolution: str = "2k",
     **kwargs: Any,
 ) -> list[PanoExport]:
@@ -78,5 +79,16 @@ def export_notes(model_id: str, **kwargs: Any) -> list[NoteExport]:
         NoteExport(id=n["id"], text=n.get("label"), local=n["anchorPosition"], geo=LatLng(**g))
         for n, g in zip(notes, geos)
     ]
+
+
+# Alias for consistency with CLI command name
+def export_sweeps(
+    model_id: str,
+    include_skybox: bool = False,
+    resolution: str = "2k",
+    **kwargs: Any,
+) -> list[PanoExport]:
+    """Alias for export_panos to match CLI command name."""
+    return export_panos(model_id, include_skybox=include_skybox, resolution=resolution, **kwargs)
 
 

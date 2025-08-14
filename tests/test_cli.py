@@ -52,13 +52,13 @@ def _mock_graphql_success(api_url: str) -> None:
 
 
 @responses.activate
-def test_cli_export_panos_json(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_export_sweeps_json(monkeypatch: pytest.MonkeyPatch) -> None:
     api_url = "https://example.test/graphql"
     _mock_graphql_success(api_url)
     monkeypatch.setenv("MATTERPORT_API_URL", api_url)
     monkeypatch.setenv("MATTERPORT_API_KEY", "k")
     monkeypatch.setenv("MATTERPORT_API_SECRET", "s")
-    result = runner.invoke(app, ["export", "panos", "-m", "MODEL", "--format", "json", "--no-pretty"])  # type: ignore[arg-type]
+    result = runner.invoke(app, ["export", "sweeps", "-m", "MODEL", "--format", "json", "--no-pretty"])  # type: ignore[arg-type]
     assert result.exit_code == 0, result.output
     data = json.loads(result.stdout)
     assert data[0]["id"] == "locA_pano1"
@@ -66,16 +66,33 @@ def test_cli_export_panos_json(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @responses.activate
-def test_cli_export_panos_csv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_export_sweeps_csv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     api_url = "https://example.test/graphql"
     _mock_graphql_success(api_url)
     monkeypatch.setenv("MATTERPORT_API_URL", api_url)
     monkeypatch.setenv("MATTERPORT_API_KEY", "k")
     monkeypatch.setenv("MATTERPORT_API_SECRET", "s")
     out = tmp_path / "out.csv"
-    result = runner.invoke(app, ["export", "panos", "-m", "MODEL", "--format", "csv", "--out", str(out)])
+    result = runner.invoke(app, ["export", "sweeps", "-m", "MODEL", "--format", "csv", "--out", str(out)])
     assert result.exit_code == 0, result.output
     text = out.read_text()
+    # Default is no skybox, so should only have basic columns
+    assert "id,lat,long,alt,x,y,z" in text
+    assert "skybox_0" not in text
+
+
+@responses.activate
+def test_cli_export_sweeps_with_skybox(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    api_url = "https://example.test/graphql"
+    _mock_graphql_success(api_url)
+    monkeypatch.setenv("MATTERPORT_API_URL", api_url)
+    monkeypatch.setenv("MATTERPORT_API_KEY", "k")
+    monkeypatch.setenv("MATTERPORT_API_SECRET", "s")
+    out = tmp_path / "out.csv"
+    result = runner.invoke(app, ["export", "sweeps", "-m", "MODEL", "--include-skybox", "--format", "csv", "--out", str(out)])
+    assert result.exit_code == 0, result.output
+    text = out.read_text()
+    # With --include-skybox should have skybox columns
     assert "id,lat,long,alt,x,y,z,skybox_0" in text
 
 

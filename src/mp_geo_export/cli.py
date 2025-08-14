@@ -13,11 +13,11 @@ from .api import ApiClient
 from .auth import get_auth_header
 from .config import api_url
 from .models import GeoPoint, LatLng, NoteExport, PanoExport, TagExport
-from .utils import Timer, console, write_csv, write_json
+from .utils import Timer, console, write_json, write_geojson, to_geojson_feature
 
 
 app = typer.Typer(add_completion=False, help="Export Matterport panos, tags, notes with geocoordinates.")
-export_app = typer.Typer(help="Export data as JSON/CSV")
+export_app = typer.Typer(help="Export data as JSON/GeoJSON")
 app.add_typer(export_app, name="export")
 
 
@@ -36,8 +36,8 @@ def _env_model_id() -> str | None:
 def export_sweeps_cmd(
     model_id: str = typer.Option(None, "--model-id", "-m", help="Matterport model ID", show_default=False),
     out: Path | None = typer.Option(None, "--out", "-o", help="Output path or '-' for stdout"),
-    format: str = typer.Option("json", "--format", "-f", case_sensitive=False, help="json or csv"),
-    resolution: str = typer.Option("2k", "--resolution", help="Pano skybox resolution", show_default=True),
+    format: str = typer.Option("json", "--format", "-f", case_sensitive=False, help="json or geojson"),
+
     include_skybox: bool = typer.Option(False, "--include-skybox/--no-include-skybox"),
     concurrency: int = typer.Option(8, "--concurrency"),
     max_rps: float = typer.Option(5.0, "--max-rps"),
@@ -47,8 +47,7 @@ def export_sweeps_cmd(
     api_secret: str | None = typer.Option(None, "--api-secret"),
     url: str | None = typer.Option(None, "--url"),
     save_to_keyring: bool = typer.Option(True, "--save-to-keyring/--no-save-to-keyring"),
-    pretty: bool = typer.Option(None, "--pretty/--no-pretty", help="Pretty JSON output; default true for TTY"),
-    csv_headers: bool = typer.Option(True, "--csv-headers/--no-csv-headers"),
+    pretty: bool = typer.Option(None, "--pretty/--no-pretty", help="Pretty output; default true for TTY"),
 ) -> None:
     resolved_model_id = model_id or _env_model_id()
     if not resolved_model_id:
@@ -63,7 +62,7 @@ def export_sweeps_cmd(
     with Timer() as t:
         if not quiet:
             c.log("Fetching locations & sweeps…")
-        locs = client.fetch_locations(model_id, resolution)
+        locs = client.fetch_locations(model_id, "2k")
         points = [{"x": l["position"]["x"], "y": l["position"]["y"], "z": l["position"]["z"]} for l in locs]
         if quiet:
             geos = client.batch_geocode(model_id, points, concurrency=concurrency, max_rps=max_rps)
@@ -91,15 +90,11 @@ def export_sweeps_cmd(
                 )
         if format.lower() == "json":
             write_json([e.model_dump() for e in exports], out, pretty)
+        elif format.lower() == "geojson":
+            features = [to_geojson_feature(e) for e in exports]
+            write_geojson(features, out, pretty)
         else:
-            headers = ["id", "lat", "long", "alt", "x", "y", "z"] + ([f"skybox_{i}" for i in range(6)] if include_skybox else [])
-            rows = []
-            for e in exports:
-                row: list[object] = [e.id, e.geo.lat, e.geo.long, e.geo.alt, e.local.x, e.local.y, e.local.z]
-                if include_skybox:
-                    row += list(e.skyboxImages or [""] * 6)
-                rows.append(row)
-            write_csv(rows, headers if csv_headers else [], out)
+            raise typer.BadParameter(f"Unsupported format: {format}. Use 'json' or 'geojson'.")
         if not quiet:
             c.print(f"[green]Exported {len(exports)} sweeps in {t.elapsed:.2f}s.[/green]")
 
@@ -108,7 +103,7 @@ def export_sweeps_cmd(
 def export_tags_cmd(
     model_id: str = typer.Option(None, "--model-id", "-m", help="Matterport model ID", show_default=False),
     out: Path | None = typer.Option(None, "--out", "-o", help="Output path or '-' for stdout"),
-    format: str = typer.Option("json", "--format", "-f", case_sensitive=False, help="json or csv"),
+    format: str = typer.Option("json", "--format", "-f", case_sensitive=False, help="json or geojson"),
     concurrency: int = typer.Option(8, "--concurrency"),
     max_rps: float = typer.Option(5.0, "--max-rps"),
     retries: int = typer.Option(3, "--retries"),
@@ -117,8 +112,7 @@ def export_tags_cmd(
     api_secret: str | None = typer.Option(None, "--api-secret"),
     url: str | None = typer.Option(None, "--url"),
     save_to_keyring: bool = typer.Option(True, "--save-to-keyring/--no-save-to-keyring"),
-    pretty: bool = typer.Option(None, "--pretty/--no-pretty", help="Pretty JSON output; default true for TTY"),
-    csv_headers: bool = typer.Option(True, "--csv-headers/--no-csv-headers"),
+    pretty: bool = typer.Option(None, "--pretty/--no-pretty", help="Pretty output; default true for TTY"),
 ) -> None:
     resolved_model_id = model_id or _env_model_id()
     if not resolved_model_id:
@@ -154,10 +148,11 @@ def export_tags_cmd(
         ]
         if format.lower() == "json":
             write_json([e.model_dump() for e in exports], out, pretty)
+        elif format.lower() == "geojson":
+            features = [to_geojson_feature(e) for e in exports]
+            write_geojson(features, out, pretty)
         else:
-            headers = ["id", "label", "lat", "long", "alt", "x", "y", "z"]
-            rows = [[e.id, e.label or "", e.geo.lat, e.geo.long, e.geo.alt, e.local.x, e.local.y, e.local.z] for e in exports]
-            write_csv(rows, headers if csv_headers else [], out)
+            raise typer.BadParameter(f"Unsupported format: {format}. Use 'json' or 'geojson'.")
         if not quiet:
             c.print(f"[green]Exported {len(exports)} tags in {t.elapsed:.2f}s.[/green]")
 
@@ -166,7 +161,7 @@ def export_tags_cmd(
 def export_notes_cmd(
     model_id: str = typer.Option(None, "--model-id", "-m", help="Matterport model ID", show_default=False),
     out: Path | None = typer.Option(None, "--out", "-o", help="Output path or '-' for stdout"),
-    format: str = typer.Option("json", "--format", "-f", case_sensitive=False, help="json or csv"),
+    format: str = typer.Option("json", "--format", "-f", case_sensitive=False, help="json or geojson"),
     concurrency: int = typer.Option(8, "--concurrency"),
     max_rps: float = typer.Option(5.0, "--max-rps"),
     retries: int = typer.Option(3, "--retries"),
@@ -175,8 +170,7 @@ def export_notes_cmd(
     api_secret: str | None = typer.Option(None, "--api-secret"),
     url: str | None = typer.Option(None, "--url"),
     save_to_keyring: bool = typer.Option(True, "--save-to-keyring/--no-save-to-keyring"),
-    pretty: bool = typer.Option(None, "--pretty/--no-pretty", help="Pretty JSON output; default true for TTY"),
-    csv_headers: bool = typer.Option(True, "--csv-headers/--no-csv-headers"),
+    pretty: bool = typer.Option(None, "--pretty/--no-pretty", help="Pretty output; default true for TTY"),
 ) -> None:
     resolved_model_id = model_id or _env_model_id()
     if not resolved_model_id:
