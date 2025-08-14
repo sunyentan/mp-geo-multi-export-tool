@@ -63,7 +63,7 @@ class ApiClient:
         raise RuntimeError("Unreachable")
 
     def fetch_locations(self, model_id: str, resolution: str) -> list[dict[str, Any]]:
-        data = self._post(GET_SWEEPS, {"modelId": model_id, "resolution": resolution})
+        data = self._post(GET_SWEEPS, {"modelId": model_id})
         model = data.get("model") or {}
         locations = model.get("locations") or []
         return locations

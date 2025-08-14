@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DEFAULT_URL = "https://api.matterport.com/api/graphql"
+DEFAULT_URL = "https://api.matterport.com/api/models/graph"
 
 
 def api_url(override: str | None = None) -> str:

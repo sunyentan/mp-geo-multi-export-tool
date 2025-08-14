@@ -29,7 +29,7 @@ Provide credentials via one of the following, in priority order:
 
 Secrets are never written to disk. Persistence uses OS keyring only. `.env` is supported for non-secret settings; see `.env.example`.
 
-Default API URL: `https://api.matterport.com/api/graphql`.
+Default API URL: `https://api.matterport.com/api/models/graph`.
 
 ### Usage
 

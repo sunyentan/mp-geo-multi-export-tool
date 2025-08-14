@@ -75,7 +75,7 @@ def export_notes(model_id: str, **kwargs: Any) -> list[NoteExport]:
     notes = client.fetch_notes(model_id)
     geos = client.batch_geocode(model_id, [n["anchorPosition"] for n in notes], concurrency=int(kwargs.get("concurrency", 8)))
     return [
-        NoteExport(id=n["id"], text=n.get("text"), local=n["anchorPosition"], geo=LatLng(**g))
+        NoteExport(id=n["id"], text=n.get("label"), local=n["anchorPosition"], geo=LatLng(**g))
         for n, g in zip(notes, geos)
     ]
 

@@ -32,13 +32,13 @@ def _env_model_id() -> str | None:
     return os.getenv("MP_MODEL_ID")
 
 
-@export_app.command("panos")
-def export_panos_cmd(
+@export_app.command("sweeps")
+def export_sweeps_cmd(
     model_id: str = typer.Option(None, "--model-id", "-m", help="Matterport model ID", show_default=False),
     out: Path | None = typer.Option(None, "--out", "-o", help="Output path or '-' for stdout"),
     format: str = typer.Option("json", "--format", "-f", case_sensitive=False, help="json or csv"),
     resolution: str = typer.Option("2k", "--resolution", help="Pano skybox resolution", show_default=True),
-    include_skybox: bool = typer.Option(True, "--include-skybox/--no-include-skybox"),
+    include_skybox: bool = typer.Option(False, "--include-skybox/--no-include-skybox"),
     concurrency: int = typer.Option(8, "--concurrency"),
     max_rps: float = typer.Option(5.0, "--max-rps"),
     retries: int = typer.Option(3, "--retries"),
@@ -62,14 +62,14 @@ def export_panos_cmd(
     quiet = out is None or str(out) == "-"
     with Timer() as t:
         if not quiet:
-            c.log("Fetching locations & panos…")
+            c.log("Fetching locations & sweeps…")
         locs = client.fetch_locations(model_id, resolution)
         points = [{"x": l["position"]["x"], "y": l["position"]["y"], "z": l["position"]["z"]} for l in locs]
         if quiet:
             geos = client.batch_geocode(model_id, points, concurrency=concurrency, max_rps=max_rps)
         else:
             with Progress() as progress:
-                task = progress.add_task("Geocoding sweeps", total=len(points))
+                task = progress.add_task("Geocoding sweep locations", total=len(points))
                 def inc(_: int) -> None:
                     progress.advance(task)
                 geos = client.batch_geocode(model_id, points, concurrency=concurrency, max_rps=max_rps, on_progress=inc)
@@ -101,7 +101,7 @@ def export_panos_cmd(
                 rows.append(row)
             write_csv(rows, headers if csv_headers else [], out)
         if not quiet:
-            c.print(f"[green]Exported {len(exports)} panos in {t.elapsed:.2f}s.[/green]")
+            c.print(f"[green]Exported {len(exports)} sweeps in {t.elapsed:.2f}s.[/green]")
 
 
 @export_app.command("tags")
@@ -204,7 +204,7 @@ def export_notes_cmd(
         exports = [
             NoteExport(
                 id=n["id"],
-                text=n.get("text"),
+                text=n.get("label"),
                 local=GeoPoint(**n["anchorPosition"]),
                 geo=LatLng(**geos[i]),
             )
