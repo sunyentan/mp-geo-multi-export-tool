@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mp-geo-export"
+version = "0.1.0"
+description = "Matterport CLI/SDK to export panos, tags, and notes with geocoordinates"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Sun-Yen Tan" }]
+license = { file = "LICENSE" }
+dependencies = [
+  "typer[all]>=0.12.3",
+  "requests>=2.31",
+  "pydantic>=2.7",
+  "python-dotenv>=1.0",
+  "keyring>=25.0",
+  "rich>=13.7",
+  "tqdm>=4.66"
+]
+
+[project.scripts]
+mp-geo-export = "mp_geo_export.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/"
+Repository = "https://github.com/"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+no_implicit_reexport = true
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+

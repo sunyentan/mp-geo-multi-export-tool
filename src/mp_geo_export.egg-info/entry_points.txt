@@ -1,0 +1,2 @@
+[console_scripts]
+mp-geo-export = mp_geo_export.cli:app
