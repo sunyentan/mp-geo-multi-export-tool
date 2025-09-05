@@ -47,31 +47,31 @@ pip install .
 ### Export Sweeps/Panoramas
 ```bash
 # Basic export to stdout
-mp-geo-export export sweeps --model-id abc123
+mp-geo-export export sweeps --model-id YOUR_MODEL_ID
 
 # Export to file with GeoJSON format
-mp-geo-export export sweeps --model-id abc123 --format geojson --out sweeps.geojson
+mp-geo-export export sweeps --model-id YOUR_MODEL_ID --format geojson --out sweeps.geojson
 
 # Include skybox images (6-sided panorama data)
-mp-geo-export export sweeps --model-id abc123 --include-skybox --format geojson
+mp-geo-export export sweeps --model-id YOUR_MODEL_ID --include-skybox --format geojson
 
 # High-performance export with custom concurrency
-mp-geo-export export sweeps --model-id abc123 --concurrency 16 --max-rps 10
+mp-geo-export export sweeps --model-id YOUR_MODEL_ID --concurrency 16 --max-rps 10
 ```
 
 ### Export Tags
 ```bash
 # Export all tags to GeoJSON
-mp-geo-export export tags --model-id abc123 --format geojson --out tags.geojson
+mp-geo-export export tags --model-id YOUR_MODEL_ID --format geojson --out tags.geojson
 
 # Export tags to JSON with pretty formatting
-mp-geo-export export tags --model-id abc123 --format json --pretty
+mp-geo-export export tags --model-id YOUR_MODEL_ID --format json --pretty
 ```
 
 ### Export Notes
 ```bash
 # Export all notes to GeoJSON
-mp-geo-export export notes --model-id abc123 --format geojson --out notes.geojson
+mp-geo-export export notes --model-id YOUR_MODEL_ID --format geojson --out notes.geojson
 ```
 
 ## Command Line Options
@@ -107,24 +107,23 @@ The tool supports multiple ways to provide your Matterport API credentials:
 Credentials are securely stored in your OS keyring and automatically retrieved:
 ```bash
 # First time: you'll be prompted to enter credentials
-mp-geo-export export sweeps --model-id abc123
+mp-geo-export export sweeps --model-id YOUR_MODEL_ID
 
 # Subsequent runs: credentials are automatically loaded
-mp-geo-export export sweeps --model-id abc123
+mp-geo-export export sweeps --model-id YOUR_MODEL_ID
 ```
 
 ### 2. Environment Variables
 ```bash
 export MATTERPORT_API_KEY="your_api_key"
 export MATTERPORT_API_SECRET="your_api_secret"
-export MATTERPORT_API_URL="https://api.matterport.com/api/models/graph"  # optional
 
-mp-geo-export export sweeps --model-id abc123
+mp-geo-export export sweeps --model-id YOUR_MODEL_ID
 ```
 
 ### 3. Command Line Flags
 ```bash
-mp-geo-export export sweeps --model-id abc123 \
+mp-geo-export export sweeps --model-id YOUR_MODEL_ID \
   --api-key "your_api_key" \
   --api-secret "your_api_secret"
 ```
